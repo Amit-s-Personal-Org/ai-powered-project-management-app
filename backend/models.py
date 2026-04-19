@@ -18,6 +18,12 @@ class BoardData(BaseModel):
     cards: dict[str, Card]
 
 
+class BoardInfo(BaseModel):
+    id: int
+    name: str
+    created_at: str
+
+
 class AIResponse(BaseModel):
     message: str
     board_update: BoardData | None = None

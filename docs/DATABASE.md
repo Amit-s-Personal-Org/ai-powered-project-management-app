@@ -14,7 +14,7 @@ SQLite, stored at `/data/pm.db` inside the container. The directory is mounted a
 | `username`      | TEXT    | NOT NULL, UNIQUE             |
 | `password_hash` | TEXT    | NOT NULL                     |
 
-For the MVP the only user is hardcoded (`user` / `password`). `password_hash` stores a bcrypt hash; the row is inserted on first startup if it does not exist.
+Users are created via `POST /api/auth/signup`. `password_hash` stores a bcrypt hash (via `passlib[bcrypt]`). Any number of users may register.
 
 ---
 
@@ -24,9 +24,10 @@ For the MVP the only user is hardcoded (`user` / `password`). `password_hash` st
 |--------------|---------|--------------------------------------|
 | `id`         | INTEGER | PRIMARY KEY AUTOINCREMENT            |
 | `user_id`    | INTEGER | NOT NULL, REFERENCES users(id)       |
+| `name`       | TEXT    | NOT NULL DEFAULT 'My Board'          |
 | `created_at` | TEXT    | NOT NULL (ISO 8601 UTC timestamp)    |
 
-One board per user for the MVP. The extra table exists so multi-board support is a single migration away.
+Each user may have many boards. `name` is chosen at creation time and can identify the project (e.g. "Q3 Roadmap").
 
 ---
 
@@ -88,14 +89,34 @@ cards       │
 
 ## API Mapping
 
-The backend exposes two board endpoints (auth required):
+Auth endpoints:
 
-| Method | Path        | Description                                      |
-|--------|-------------|--------------------------------------------------|
-| GET    | /api/board  | Returns the user's board as `BoardData` JSON     |
-| PUT    | /api/board  | Replaces the full board state, returns `BoardData` |
+| Method | Path               | Description                                              |
+|--------|--------------------|----------------------------------------------------------|
+| POST   | /api/auth/signup   | Create account; returns JWT                              |
+| POST   | /api/auth/login    | Authenticate against DB; returns JWT                     |
+| POST   | /api/auth/logout   | No-op (client drops token)                               |
+| GET    | /api/auth/me       | Returns `{username}` for the current JWT                 |
+
+Board endpoints (all auth-required):
+
+| Method | Path                     | Description                                          |
+|--------|--------------------------|------------------------------------------------------|
+| GET    | /api/boards              | List all boards for current user (`[BoardInfo]`)     |
+| POST   | /api/boards              | Create a new named board; returns `BoardInfo`        |
+| DELETE | /api/boards/{board_id}   | Delete a board (must own it)                         |
+| GET    | /api/boards/{board_id}   | Returns the board's full data as `BoardData`         |
+| PUT    | /api/boards/{board_id}   | Replaces full board state; returns `BoardData`       |
 
 `BoardData` (matching the frontend type exactly):
+
+`BoardInfo` (board list item):
+
+```json
+{ "id": 1, "name": "Q3 Roadmap", "created_at": "2026-04-19T10:00:00Z" }
+```
+
+`BoardData` (full board state, matching the frontend type exactly):
 
 ```json
 {
@@ -111,7 +132,7 @@ The backend exposes two board endpoints (auth required):
 
 Database integer IDs are serialised as strings to match the frontend's `id: string` type. The frontend treats IDs as opaque strings, so this is transparent.
 
-`PUT /api/board` strategy: delete all existing columns and cards for the board, then re-insert from the request body. Simple and correct given the frontend always sends the full board state.
+`PUT /api/boards/{board_id}` strategy: delete all existing columns and cards for the board, then re-insert from the request body. Simple and correct given the frontend always sends the full board state. The route returns 403 if the board does not belong to the authenticated user.
 
 ---
 

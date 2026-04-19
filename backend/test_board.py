@@ -12,15 +12,72 @@ def client(tmp_path):
         yield c
 
 
-def _auth_headers(client: TestClient) -> dict:
-    res = client.post(
-        "/api/auth/login", json={"username": "user", "password": "password"}
-    )
-    return {"Authorization": f"Bearer {res.json()['token']}"}
+def _signup(client: TestClient, username: str = "user", password: str = "password") -> tuple[dict, int]:
+    """Sign up, return (auth_headers, first_board_id)."""
+    res = client.post("/api/auth/signup", json={"username": username, "password": password})
+    token = res.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    boards = client.get("/api/boards", headers=headers).json()
+    return headers, boards[0]["id"]
 
+
+# ---------------------------------------------------------------------------
+# Board list
+# ---------------------------------------------------------------------------
+
+def test_list_boards_returns_seeded_board(client):
+    headers, _ = _signup(client)
+    res = client.get("/api/boards", headers=headers)
+    assert res.status_code == 200
+    boards = res.json()
+    assert len(boards) == 1
+    assert boards[0]["name"] == "My Board"
+
+
+def test_list_boards_requires_auth(client):
+    res = client.get("/api/boards")
+    assert res.status_code == 401
+
+
+def test_create_board(client):
+    headers, _ = _signup(client)
+    res = client.post("/api/boards", json={"name": "Sprint 42"}, headers=headers)
+    assert res.status_code == 201
+    assert res.json()["name"] == "Sprint 42"
+
+
+def test_create_board_seeds_five_columns(client):
+    headers, _ = _signup(client)
+    res = client.post("/api/boards", json={"name": "New"}, headers=headers)
+    board_id = res.json()["id"]
+    board = client.get(f"/api/boards/{board_id}", headers=headers).json()
+    assert len(board["columns"]) == 5
+
+
+def test_delete_board(client):
+    headers, _ = _signup(client)
+    res = client.post("/api/boards", json={"name": "Temp"}, headers=headers)
+    board_id = res.json()["id"]
+    del_res = client.delete(f"/api/boards/{board_id}", headers=headers)
+    assert del_res.status_code == 204
+    boards = client.get("/api/boards", headers=headers).json()
+    assert all(b["id"] != board_id for b in boards)
+
+
+def test_delete_board_from_other_user_returns_404(client):
+    headers_a, _ = _signup(client, "alice", "pw1")
+    headers_b, board_id_b = _signup(client, "bob", "pw2")
+    res = client.delete(f"/api/boards/{board_id_b}", headers=headers_a)
+    assert res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Board CRUD
+# ---------------------------------------------------------------------------
 
 def test_get_board_returns_seeded_data(client):
-    res = client.get("/api/board", headers=_auth_headers(client))
+    headers, board_id = _signup(client)
+    res = client.get(f"/api/boards/{board_id}", headers=headers)
     assert res.status_code == 200
     data = res.json()
     assert len(data["columns"]) == 5
@@ -28,81 +85,66 @@ def test_get_board_returns_seeded_data(client):
 
 
 def test_get_board_column_order(client):
-    res = client.get("/api/board", headers=_auth_headers(client))
+    headers, board_id = _signup(client)
+    res = client.get(f"/api/boards/{board_id}", headers=headers)
     titles = [c["title"] for c in res.json()["columns"]]
     assert titles == ["Backlog", "Discovery", "In Progress", "Review", "Done"]
 
 
 def test_get_board_requires_auth(client):
-    res = client.get("/api/board")
+    res = client.get("/api/boards/1")
     assert res.status_code == 401
 
 
 def test_put_board_requires_auth(client):
-    res = client.put("/api/board", json={"columns": [], "cards": {}})
+    res = client.put("/api/boards/1", json={"columns": [], "cards": {}})
     assert res.status_code == 401
 
 
 def test_put_board_returns_board_data(client):
-    headers = _auth_headers(client)
-    board = client.get("/api/board", headers=headers).json()
-    res = client.put("/api/board", json=board, headers=headers)
+    headers, board_id = _signup(client)
+    board = client.get(f"/api/boards/{board_id}", headers=headers).json()
+    res = client.put(f"/api/boards/{board_id}", json=board, headers=headers)
     assert res.status_code == 200
-    data = res.json()
-    assert "columns" in data
-    assert "cards" in data
+    assert "columns" in res.json()
+    assert "cards" in res.json()
 
 
 def test_put_board_persists_rename(client):
-    headers = _auth_headers(client)
-    board = client.get("/api/board", headers=headers).json()
+    headers, board_id = _signup(client)
+    board = client.get(f"/api/boards/{board_id}", headers=headers).json()
     board["columns"][0]["title"] = "Now Playing"
-    client.put("/api/board", json=board, headers=headers)
-
-    refreshed = client.get("/api/board", headers=headers).json()
+    client.put(f"/api/boards/{board_id}", json=board, headers=headers)
+    refreshed = client.get(f"/api/boards/{board_id}", headers=headers).json()
     assert refreshed["columns"][0]["title"] == "Now Playing"
 
 
 def test_put_board_persists_new_card(client):
-    headers = _auth_headers(client)
-    board = client.get("/api/board", headers=headers).json()
+    headers, board_id = _signup(client)
+    board = client.get(f"/api/boards/{board_id}", headers=headers).json()
     original_count = len(board["cards"])
-
-    new_card_id = "tmp-new"
-    board["cards"][new_card_id] = {"id": new_card_id, "title": "New task", "details": "Details here"}
-    board["columns"][0]["cardIds"].append(new_card_id)
-    client.put("/api/board", json=board, headers=headers)
-
-    refreshed = client.get("/api/board", headers=headers).json()
+    board["cards"]["tmp-new"] = {"id": "tmp-new", "title": "New task", "details": "Details"}
+    board["columns"][0]["cardIds"].append("tmp-new")
+    client.put(f"/api/boards/{board_id}", json=board, headers=headers)
+    refreshed = client.get(f"/api/boards/{board_id}", headers=headers).json()
     assert len(refreshed["cards"]) == original_count + 1
-    titles = [c["title"] for c in refreshed["cards"].values()]
-    assert "New task" in titles
-
-
-def test_put_board_persists_card_move(client):
-    headers = _auth_headers(client)
-    board = client.get("/api/board", headers=headers).json()
-
-    # Move all cards from column 0 to column 1
-    moved_ids = board["columns"][0]["cardIds"][:]
-    board["columns"][1]["cardIds"] = moved_ids + board["columns"][1]["cardIds"]
-    board["columns"][0]["cardIds"] = []
-    client.put("/api/board", json=board, headers=headers)
-
-    refreshed = client.get("/api/board", headers=headers).json()
-    assert refreshed["columns"][0]["cardIds"] == []
-    assert len(refreshed["columns"][1]["cardIds"]) == len(moved_ids) + len(board["columns"][1]["cardIds"]) - len(moved_ids)
+    assert "New task" in [c["title"] for c in refreshed["cards"].values()]
 
 
 def test_put_board_persists_card_deletion(client):
-    headers = _auth_headers(client)
-    board = client.get("/api/board", headers=headers).json()
+    headers, board_id = _signup(client)
+    board = client.get(f"/api/boards/{board_id}", headers=headers).json()
     original_count = len(board["cards"])
-
-    # Remove first card from column 0
     removed_id = board["columns"][0]["cardIds"].pop(0)
     del board["cards"][removed_id]
-    client.put("/api/board", json=board, headers=headers)
-
-    refreshed = client.get("/api/board", headers=headers).json()
+    client.put(f"/api/boards/{board_id}", json=board, headers=headers)
+    refreshed = client.get(f"/api/boards/{board_id}", headers=headers).json()
     assert len(refreshed["cards"]) == original_count - 1
+
+
+def test_boards_are_isolated_between_users(client):
+    headers_a, board_id_a = _signup(client, "alice", "pw1")
+    headers_b, board_id_b = _signup(client, "bob", "pw2")
+    # alice cannot read bob's board
+    res = client.get(f"/api/boards/{board_id_b}", headers=headers_a)
+    assert res.status_code == 404

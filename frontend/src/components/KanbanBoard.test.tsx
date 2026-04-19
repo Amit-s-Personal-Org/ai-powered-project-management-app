@@ -3,27 +3,41 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { initialData, type BoardData } from "@/lib/kanban";
+import type { BoardInfo } from "@/lib/api";
 import * as api from "@/lib/api";
 
 vi.mock("@/lib/api");
 
+const TEST_BOARD_ID = 1;
+const TEST_BOARDS: BoardInfo[] = [{ id: 1, name: "My Board", created_at: "" }];
+
 beforeEach(() => {
   vi.mocked(api.getBoard).mockResolvedValue(initialData);
-  vi.mocked(api.saveBoard).mockImplementation(async (board: BoardData) => board);
+  vi.mocked(api.saveBoard).mockImplementation(async (_id: number, board: BoardData) => board);
+  vi.mocked(api.getBoards).mockResolvedValue(TEST_BOARDS);
+  vi.mocked(api.createBoard).mockResolvedValue(TEST_BOARDS[0]);
+  vi.mocked(api.deleteBoard).mockResolvedValue(undefined);
 });
+
+const defaultProps = {
+  boardId: TEST_BOARD_ID,
+  boards: TEST_BOARDS,
+  onBoardsChange: vi.fn(),
+  onSwitchBoard: vi.fn(),
+};
 
 const getFirstColumn = () => screen.getAllByTestId(/column-/i)[0];
 
 describe("KanbanBoard", () => {
   it("renders five columns after loading", async () => {
-    render(<KanbanBoard />);
+    render(<KanbanBoard {...defaultProps} />);
     await waitFor(() =>
       expect(screen.getAllByTestId(/column-/i)).toHaveLength(5)
     );
   });
 
   it("renames a column", async () => {
-    render(<KanbanBoard />);
+    render(<KanbanBoard {...defaultProps} />);
     await waitFor(() => screen.getAllByTestId(/column-/i));
 
     const column = getFirstColumn();
@@ -34,7 +48,7 @@ describe("KanbanBoard", () => {
   });
 
   it("adds and removes a card", async () => {
-    render(<KanbanBoard />);
+    render(<KanbanBoard {...defaultProps} />);
     await waitFor(() => screen.getAllByTestId(/column-/i));
 
     const column = getFirstColumn();

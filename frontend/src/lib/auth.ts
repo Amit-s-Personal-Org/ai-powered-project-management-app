@@ -16,6 +16,18 @@ export async function login(username: string, password: string): Promise<void> {
   localStorage.setItem(TOKEN_KEY, data.token);
 }
 
+export async function signup(username: string, password: string): Promise<void> {
+  const res = await fetch("/api/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (res.status === 409) throw new Error("Username already taken");
+  if (!res.ok) throw new Error("Signup failed");
+  const data = await res.json();
+  localStorage.setItem(TOKEN_KEY, data.token);
+}
+
 export function logout(): void {
   localStorage.removeItem(TOKEN_KEY);
 }

@@ -14,15 +14,20 @@ import {
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { AISidebar } from "@/components/AISidebar";
+import { BoardSelector } from "@/components/BoardSelector";
 import { createId, moveCard, type BoardData } from "@/lib/kanban";
-import { getBoard, saveBoard } from "@/lib/api";
+import { getBoard, saveBoard, type BoardInfo } from "@/lib/api";
 
 type KanbanBoardProps = {
+  boardId: number;
+  boards: BoardInfo[];
+  onBoardsChange: (boards: BoardInfo[]) => void;
+  onSwitchBoard: (board: BoardInfo) => void;
   onLogout?: () => void;
   onBoardUpdate?: (board: BoardData) => void;
 };
 
-export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
+export const KanbanBoard = ({ boardId, boards, onBoardsChange, onSwitchBoard, onLogout, onBoardUpdate }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,8 +46,8 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
   }
 
   useEffect(() => {
-    getBoard().then(applyBoard);
-  }, []);
+    getBoard(boardId).then(applyBoard);
+  }, [boardId]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
@@ -58,7 +63,7 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
       columns: moveCard(board.columns, active.id as string, over.id as string),
     };
     applyBoard(next);
-    applyBoard(await saveBoard(next));
+    applyBoard(await saveBoard(boardId, next));
   };
 
   const handleRenameColumn = (columnId: string, title: string) => {
@@ -73,7 +78,7 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
 
     if (renameTimerRef.current) clearTimeout(renameTimerRef.current);
     renameTimerRef.current = setTimeout(async () => {
-      if (boardRef.current) applyBoard(await saveBoard(boardRef.current));
+      if (boardRef.current) applyBoard(await saveBoard(boardId, boardRef.current));
     }, 500);
   };
 
@@ -95,7 +100,7 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
       ),
     };
     applyBoard(next);
-    applyBoard(await saveBoard(next));
+    applyBoard(await saveBoard(boardId, next));
   };
 
   const handleDeleteCard = async (columnId: string, cardId: string) => {
@@ -112,7 +117,7 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
       ),
     };
     applyBoard(next);
-    applyBoard(await saveBoard(next));
+    applyBoard(await saveBoard(boardId, next));
   };
 
   const handleAIBoardUpdate = (updatedBoard: BoardData) => {
@@ -152,7 +157,7 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
-                Single Board Kanban
+                Multi-Board Kanban
               </p>
               <h1 className="mt-3 font-display text-4xl font-semibold text-[var(--navy-dark)]">
                 Kanban Studio
@@ -164,14 +169,12 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
               </p>
             </div>
             <div className="flex items-start gap-4">
-              <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
-                  Focus
-                </p>
-                <p className="mt-2 text-lg font-semibold text-[var(--primary-blue)]">
-                  One board. Five columns. Zero clutter.
-                </p>
-              </div>
+              <BoardSelector
+                boards={boards}
+                activeBoardId={boardId}
+                onSwitch={onSwitchBoard}
+                onBoardsChange={onBoardsChange}
+              />
               <button
                 type="button"
                 aria-label="Open AI assistant"
@@ -237,6 +240,7 @@ export const KanbanBoard = ({ onLogout, onBoardUpdate }: KanbanBoardProps) => {
       </main>
       <AISidebar
         isOpen={sidebarOpen}
+        boardId={boardId}
         onClose={() => setSidebarOpen(false)}
         onBoardUpdate={handleAIBoardUpdate}
       />

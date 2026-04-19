@@ -2,34 +2,37 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/auth";
+import { login, signup } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const username = (
-      form.elements.namedItem("username") as HTMLInputElement
-    ).value;
-    const password = (
-      form.elements.namedItem("password") as HTMLInputElement
-    ).value;
+    const username = (form.elements.namedItem("username") as HTMLInputElement).value;
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
     setLoading(true);
     setError("");
     try {
-      await login(username, password);
+      if (mode === "login") {
+        await login(username, password);
+      } else {
+        await signup(username, password);
+      }
       router.replace("/");
-    } catch {
-      setError("Invalid username or password.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
+
+  const isLogin = mode === "login";
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -38,13 +41,13 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-sm rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur">
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
-          Single Board Kanban
+          Multi-Board Kanban
         </p>
         <h1 className="mt-3 font-display text-3xl font-semibold text-[var(--navy-dark)]">
           Kanban Studio
         </h1>
         <p className="mt-2 text-sm text-[var(--gray-text)]">
-          Sign in to access your board.
+          {isLogin ? "Sign in to access your boards." : "Create an account to get started."}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -77,7 +80,7 @@ export default function LoginPage() {
               name="password"
               type="password"
               required
-              autoComplete="current-password"
+              autoComplete={isLogin ? "current-password" : "new-password"}
               className="mt-2 w-full rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm font-medium text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)]"
             />
           </div>
@@ -91,9 +94,20 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-full bg-[var(--secondary-purple)] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110 disabled:opacity-60"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? (isLogin ? "Signing in..." : "Creating account...") : (isLogin ? "Sign in" : "Create account")}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-xs text-[var(--gray-text)]">
+          {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+          <button
+            type="button"
+            onClick={() => { setMode(isLogin ? "signup" : "login"); setError(""); }}
+            className="font-semibold text-[var(--primary-blue)] hover:underline"
+          >
+            {isLogin ? "Sign up" : "Sign in"}
+          </button>
+        </p>
       </div>
     </div>
   );

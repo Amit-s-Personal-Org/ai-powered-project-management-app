@@ -1,9 +1,8 @@
-import hashlib
 import os
 import sqlite3
 from datetime import datetime, timezone
 
-from models import BoardData, Card, Column
+from models import BoardData, BoardInfo, Card, Column
 
 DATABASE_PATH = os.getenv("DATABASE_URL", "/data/pm.db")
 
@@ -67,6 +66,7 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS boards (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id    INTEGER NOT NULL REFERENCES users(id),
+                name       TEXT    NOT NULL DEFAULT 'My Board',
                 created_at TEXT    NOT NULL
             );
             CREATE TABLE IF NOT EXISTS columns (
@@ -83,28 +83,51 @@ def init_db() -> None:
                 position  INTEGER NOT NULL
             );
         """)
-        _seed_user(conn)
+        # Migrate: add name column if upgrading from older schema
+        try:
+            conn.execute("ALTER TABLE boards ADD COLUMN name TEXT NOT NULL DEFAULT 'My Board'")
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
 
-def _seed_user(conn: sqlite3.Connection) -> None:
-    row = conn.execute("SELECT id FROM users WHERE username = 'user'").fetchone()
-    if row:
-        return
+# ---------------------------------------------------------------------------
+# User helpers
+# ---------------------------------------------------------------------------
 
-    # Placeholder hash — replaced with proper bcrypt when real auth is added
-    password_hash = hashlib.sha256(b"password").hexdigest()
+def get_user_by_username(username: str) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id, username, password_hash FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def create_user(username: str, password_hash: str) -> int:
+    """Insert a new user and seed a default board. Returns user_id."""
+    with get_connection() as conn:
+        try:
+            cursor = conn.execute(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                (username, password_hash),
+            )
+            user_id = cursor.lastrowid
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Username '{username}' is already taken")
+        _insert_board_with_seed(conn, user_id, "My Board")
+        return user_id
+
+
+# ---------------------------------------------------------------------------
+# Board helpers
+# ---------------------------------------------------------------------------
+
+def _insert_board_with_seed(conn: sqlite3.Connection, user_id: int, name: str) -> int:
     cursor = conn.execute(
-        "INSERT INTO users (username, password_hash) VALUES ('user', ?)",
-        (password_hash,),
-    )
-    user_id = cursor.lastrowid
-
-    cursor = conn.execute(
-        "INSERT INTO boards (user_id, created_at) VALUES (?, ?)",
-        (user_id, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO boards (user_id, name, created_at) VALUES (?, ?, ?)",
+        (user_id, name, datetime.now(timezone.utc).isoformat()),
     )
     board_id = cursor.lastrowid
-
     for col_pos, col in enumerate(_SEED_COLUMNS):
         cursor = conn.execute(
             "INSERT INTO columns (board_id, title, position) VALUES (?, ?, ?)",
@@ -116,14 +139,47 @@ def _seed_user(conn: sqlite3.Connection) -> None:
                 "INSERT INTO cards (column_id, title, details, position) VALUES (?, ?, ?, ?)",
                 (col_id, card["title"], card["details"], card_pos),
             )
+    return board_id
 
 
-def _board_id_for_user(conn: sqlite3.Connection, username: str) -> int | None:
-    row = conn.execute(
-        "SELECT b.id FROM boards b JOIN users u ON b.user_id = u.id WHERE u.username = ?",
-        (username,),
-    ).fetchone()
-    return row["id"] if row else None
+def get_boards_for_user(username: str) -> list[BoardInfo]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """SELECT b.id, b.name, b.created_at
+               FROM boards b JOIN users u ON b.user_id = u.id
+               WHERE u.username = ?
+               ORDER BY b.created_at""",
+            (username,),
+        ).fetchall()
+        return [BoardInfo(id=r["id"], name=r["name"], created_at=r["created_at"]) for r in rows]
+
+
+def create_board_for_user(username: str, name: str) -> BoardInfo:
+    with get_connection() as conn:
+        user_row = conn.execute(
+            "SELECT id FROM users WHERE username = ?", (username,)
+        ).fetchone()
+        if not user_row:
+            raise ValueError("User not found")
+        board_id = _insert_board_with_seed(conn, user_row["id"], name)
+        row = conn.execute(
+            "SELECT id, name, created_at FROM boards WHERE id = ?", (board_id,)
+        ).fetchone()
+        return BoardInfo(id=row["id"], name=row["name"], created_at=row["created_at"])
+
+
+def delete_board(board_id: int, username: str) -> bool:
+    """Delete board if it belongs to the user. Returns True on success."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """SELECT b.id FROM boards b JOIN users u ON b.user_id = u.id
+               WHERE b.id = ? AND u.username = ?""",
+            (board_id, username),
+        ).fetchone()
+        if not row:
+            return False
+        conn.execute("DELETE FROM boards WHERE id = ?", (board_id,))
+        return True
 
 
 def _read_board(conn: sqlite3.Connection, board_id: int) -> BoardData:
@@ -150,21 +206,27 @@ def _read_board(conn: sqlite3.Connection, board_id: int) -> BoardData:
     return BoardData(columns=columns, cards=cards)
 
 
-def get_board(username: str) -> BoardData | None:
+def _assert_board_ownership(conn: sqlite3.Connection, board_id: int, username: str) -> bool:
+    row = conn.execute(
+        """SELECT b.id FROM boards b JOIN users u ON b.user_id = u.id
+           WHERE b.id = ? AND u.username = ?""",
+        (board_id, username),
+    ).fetchone()
+    return row is not None
+
+
+def get_board_by_id(board_id: int, username: str) -> BoardData | None:
     with get_connection() as conn:
-        board_id = _board_id_for_user(conn, username)
-        if board_id is None:
+        if not _assert_board_ownership(conn, board_id, username):
             return None
         return _read_board(conn, board_id)
 
 
-def save_board(username: str, board: BoardData) -> BoardData | None:
+def save_board_by_id(board_id: int, username: str, board: BoardData) -> BoardData | None:
     with get_connection() as conn:
-        board_id = _board_id_for_user(conn, username)
-        if board_id is None:
+        if not _assert_board_ownership(conn, board_id, username):
             return None
 
-        # Delete existing columns; cards cascade automatically
         conn.execute("DELETE FROM columns WHERE board_id = ?", (board_id,))
 
         for col_pos, col in enumerate(board.columns):

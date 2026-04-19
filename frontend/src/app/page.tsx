@@ -3,19 +3,26 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getMe, logout } from "@/lib/auth";
+import { getBoards, type BoardInfo } from "@/lib/api";
 import { KanbanBoard } from "@/components/KanbanBoard";
+import { BoardSelector } from "@/components/BoardSelector";
 
 export default function Home() {
   const router = useRouter();
+  const [boards, setBoards] = useState<BoardInfo[]>([]);
+  const [activeBoardId, setActiveBoardId] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    getMe().then((user) => {
+    getMe().then(async (user) => {
       if (!user) {
         router.replace("/login");
-      } else {
-        setReady(true);
+        return;
       }
+      const list = await getBoards();
+      setBoards(list);
+      if (list.length > 0) setActiveBoardId(list[0].id);
+      setReady(true);
     });
   }, [router]);
 
@@ -25,5 +32,24 @@ export default function Home() {
   };
 
   if (!ready) return null;
-  return <KanbanBoard onLogout={handleLogout} />;
+
+  if (boards.length === 0 || activeBoardId === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+          No boards found.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <KanbanBoard
+      boardId={activeBoardId}
+      boards={boards}
+      onBoardsChange={setBoards}
+      onSwitchBoard={(board) => setActiveBoardId(board.id)}
+      onLogout={handleLogout}
+    />
+  );
 }

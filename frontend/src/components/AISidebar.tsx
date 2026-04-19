@@ -6,16 +6,23 @@ import { sendChat, type ChatMessage } from "@/lib/api";
 
 type AISidebarProps = {
   isOpen: boolean;
+  boardId: number;
   onClose: () => void;
   onBoardUpdate: (board: BoardData) => void;
 };
 
-export const AISidebar = ({ isOpen, onClose, onBoardUpdate }: AISidebarProps) => {
+export const AISidebar = ({ isOpen, boardId, onClose, onBoardUpdate }: AISidebarProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMessages([]);
+    setInput("");
+    setError(null);
+  }, [boardId]);
 
   useEffect(() => {
     if (typeof bottomRef.current?.scrollIntoView === "function") {
@@ -36,7 +43,7 @@ export const AISidebar = ({ isOpen, onClose, onBoardUpdate }: AISidebarProps) =>
     setError(null);
 
     try {
-      const response = await sendChat(text, history);
+      const response = await sendChat(text, history, boardId);
       const assistantMsg: ChatMessage = { role: "assistant", content: response.message };
       setMessages([...newMessages, assistantMsg]);
       if (response.board_update) {

@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -9,10 +10,15 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production-32b")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
 
-HARDCODED_USERNAME = "user"
-HARDCODED_PASSWORD = "password"
-
 _security = HTTPBearer()
+
+
+def hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 def create_token(username: str) -> str:

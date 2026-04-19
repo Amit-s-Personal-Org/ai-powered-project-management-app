@@ -9,9 +9,11 @@
 - [x] Part 5: Database modeling
 - [x] Part 6: Backend API
 - [x] Part 7: Frontend + Backend integration
-- [ ] Part 8: AI connectivity
-- [ ] Part 9: AI + Kanban structured outputs
-- [ ] Part 10: AI sidebar UI
+- [x] Part 8: AI connectivity
+- [x] Part 9: AI + Kanban structured outputs
+- [x] Part 10: AI sidebar UI
+- [ ] Part 11: Multi-user signup/login
+- [ ] Part 12: Multiple project boards
 
 ---
 
@@ -197,6 +199,66 @@ Wire the frontend to the real backend API. State now persists.
 ### Success Criteria
 - The app is a fully persistent Kanban board
 - No in-memory-only state for board data
+
+---
+
+## Part 11: Multi-User Signup/Login
+
+Replace the hardcoded single-user auth with a real user registration and login system.
+
+### Steps
+- [ ] Add `POST /api/auth/signup` — accepts `{username, password}`, hashes password with bcrypt, inserts into `users`, returns JWT
+- [ ] Update `POST /api/auth/login` — authenticate against the `users` table (remove hardcoded credentials)
+- [ ] Add `passlib[bcrypt]` to backend deps (already used for hashing, ensure it's declared)
+- [ ] In the frontend:
+  - Update `src/app/login/page.tsx` — add toggle between Login and Sign Up modes
+  - Add `signup()` to `src/lib/auth.ts`
+  - Add `signup` API call to `src/lib/api.ts`
+- [ ] On signup, seed a default board for the new user (same seed data as Part 6)
+
+### Tests
+- `POST /api/auth/signup` creates a new user and returns a JWT
+- `POST /api/auth/signup` with an existing username returns 409
+- `POST /api/auth/login` works with DB-stored credentials, not hardcoded ones
+- Signing up and immediately using the board works end-to-end
+
+### Success Criteria
+- Any user can create an account and log in
+- Hardcoded `user`/`password` credentials are removed
+- Each user sees only their own board
+
+---
+
+## Part 12: Multiple Project Boards
+
+Allow each user to create, name, switch between, and delete multiple boards.
+
+### Steps
+- [ ] Add `name` column (TEXT NOT NULL DEFAULT 'My Board') to `boards` table; migrate existing rows
+- [ ] Backend endpoints (all auth-required):
+  - `GET /api/boards` — list all boards for the current user (`[{id, name, created_at}]`)
+  - `POST /api/boards` — create a new named board, seed with default columns/cards, return board info
+  - `DELETE /api/boards/{board_id}` — delete a board (must belong to current user)
+  - Update `GET /api/board` → `GET /api/boards/{board_id}` — fetch a specific board's data
+  - Update `PUT /api/board` → `PUT /api/boards/{board_id}` — save a specific board's data
+- [ ] Update `POST /api/chat` to accept `board_id` and operate on the correct board
+- [ ] Frontend:
+  - Add `BoardSelector` component — header dropdown listing boards with create/delete actions
+  - Update `src/lib/api.ts` with new typed API calls
+  - Update `src/app/page.tsx` to track `activeBoardId` in state, pass to all API calls
+  - On first load, fetch board list; default to first board (or prompt to create one)
+- [ ] Update Pydantic models in `backend/models.py`: add `BoardInfo`, update request/response shapes
+
+### Tests
+- User can create two boards, switch between them, and each retains independent state
+- Deleting a board removes it and its columns/cards (cascade)
+- `GET /api/boards/{board_id}` returns 403 if the board belongs to another user
+- Board list shows correct names
+
+### Success Criteria
+- A user can manage multiple named project boards from the UI
+- Board data is fully isolated per board and per user
+- All existing AI chat functionality works with the active board
 
 ---
 
