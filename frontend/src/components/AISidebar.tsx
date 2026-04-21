@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Send, X, Sparkles } from "lucide-react";
 import type { BoardData } from "@/lib/kanban";
 import { sendChat, type ChatMessage } from "@/lib/api";
 
@@ -75,18 +76,23 @@ export const AISidebar = ({ isOpen, boardId, onClose, onBoardUpdate }: AISidebar
       <aside
         data-testid="ai-sidebar"
         aria-label="AI assistant sidebar"
-        className={`fixed right-0 top-0 z-30 flex h-screen w-[380px] flex-col border-l border-[var(--stroke)] bg-[var(--surface-strong)] shadow-[var(--shadow)] transition-transform duration-300 ${
+        className={`fixed right-0 top-0 z-30 flex h-screen w-[360px] flex-col border-l border-[var(--stroke)] bg-[var(--surface-strong)] shadow-[var(--shadow)] transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between border-b border-[var(--stroke)] px-6 py-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
-              AI Assistant
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-[var(--navy-dark)]">
-              Ask me anything
-            </h2>
+        <div className="flex items-center justify-between border-b border-[var(--stroke)] px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--primary-blue)]">
+              <Sparkles size={15} className="text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
+                AI Assistant
+              </p>
+              <h2 className="text-sm font-semibold text-[var(--navy-dark)]">
+                Ask me anything
+              </h2>
+            </div>
           </div>
           <button
             type="button"
@@ -94,13 +100,13 @@ export const AISidebar = ({ isOpen, boardId, onClose, onBoardUpdate }: AISidebar
             aria-label="Close AI sidebar"
             className="rounded-full p-2 text-[var(--gray-text)] transition hover:bg-[var(--surface)] hover:text-[var(--navy-dark)]"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {messages.length === 0 && !loading && (
-            <p className="text-center text-sm text-[var(--gray-text)] mt-8">
+            <p className="text-center text-xs text-[var(--gray-text)] mt-8 leading-6">
               Ask me to help manage your board — move cards, add tasks, or just chat.
             </p>
           )}
@@ -110,7 +116,7 @@ export const AISidebar = ({ isOpen, boardId, onClose, onBoardUpdate }: AISidebar
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${
                   msg.role === "user"
                     ? "bg-[var(--primary-blue)] text-white"
                     : "border border-[var(--stroke)] bg-[var(--surface)] text-[var(--navy-dark)]"
@@ -122,7 +128,7 @@ export const AISidebar = ({ isOpen, boardId, onClose, onBoardUpdate }: AISidebar
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--gray-text)]">
+              <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--gray-text)]">
                 Thinking…
               </div>
             </div>
@@ -137,7 +143,7 @@ export const AISidebar = ({ isOpen, boardId, onClose, onBoardUpdate }: AISidebar
           <div className="flex items-end gap-2">
             <textarea
               aria-label="Chat input"
-              className="flex-1 resize-none rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--navy-dark)] placeholder:text-[var(--gray-text)] focus:border-[var(--primary-blue)] focus:outline-none disabled:opacity-50"
+              className="flex-1 resize-none rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--navy-dark)] placeholder:text-[var(--gray-text)] focus:border-[var(--primary-blue)] focus:outline-none disabled:opacity-50"
               placeholder="Type a message…"
               rows={2}
               value={input}
@@ -149,9 +155,10 @@ export const AISidebar = ({ isOpen, boardId, onClose, onBoardUpdate }: AISidebar
               type="button"
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="rounded-xl bg-[var(--primary-blue)] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+              aria-label="Send message"
+              className="flex h-[68px] w-10 items-center justify-center rounded-xl bg-[var(--primary-blue)] text-white transition hover:opacity-90 disabled:opacity-40"
             >
-              Send
+              <Send size={16} />
             </button>
           </div>
         </div>

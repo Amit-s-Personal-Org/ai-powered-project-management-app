@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Trash2, ChevronDown } from "lucide-react";
 import type { BoardInfo } from "@/lib/api";
 import { createBoard, deleteBoard } from "@/lib/api";
 
@@ -70,17 +71,17 @@ export const BoardSelector = ({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4 text-left transition hover:border-[var(--primary-blue)]"
+        className="flex items-center gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-3 py-2 text-left transition hover:border-[var(--primary-blue)]"
       >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
-            Active Board
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
+            Board
           </p>
-          <p className="mt-1 text-sm font-semibold text-[var(--navy-dark)]">
+          <p className="text-sm font-semibold text-[var(--navy-dark)] truncate max-w-[120px]">
             {activeBoard?.name ?? "—"}
           </p>
         </div>
-        <span className="ml-2 text-[var(--gray-text)]">▾</span>
+        <ChevronDown size={14} className={`shrink-0 text-[var(--gray-text)] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
@@ -102,9 +103,9 @@ export const BoardSelector = ({
                     type="button"
                     onClick={(e) => handleDelete(e, board)}
                     aria-label={`Delete ${board.name}`}
-                    className="ml-2 shrink-0 rounded-full p-1 text-[var(--gray-text)] hover:bg-red-50 hover:text-red-500"
+                    className="ml-2 shrink-0 rounded-full p-1 text-[var(--gray-text)] transition hover:bg-red-50 hover:text-red-500"
                   >
-                    ✕
+                    <Trash2 size={13} />
                   </button>
                 )}
               </div>

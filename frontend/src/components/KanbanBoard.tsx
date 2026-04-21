@@ -11,6 +11,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { Sparkles, LogOut, User } from "lucide-react";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { AISidebar } from "@/components/AISidebar";
@@ -153,65 +154,56 @@ export const KanbanBoard = ({ boardId, boards, username, onBoardsChange, onSwitc
       <div className="pointer-events-none absolute left-0 top-0 h-[420px] w-[420px] -translate-x-1/3 -translate-y-1/3 rounded-full bg-[radial-gradient(circle,_rgba(32,157,215,0.25)_0%,_rgba(32,157,215,0.05)_55%,_transparent_70%)]" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/4 translate-y-1/4 rounded-full bg-[radial-gradient(circle,_rgba(117,57,145,0.18)_0%,_rgba(117,57,145,0.05)_55%,_transparent_75%)]" />
 
-      <main className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col gap-10 px-6 pb-16 pt-12">
-        <header className="flex flex-col gap-6 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
-                Multi-Board Kanban
-              </p>
-              <h1 className="mt-3 font-display text-4xl font-semibold text-[var(--navy-dark)]">
+      <main className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col gap-6 px-6 pb-16 pt-8">
+        <header className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--stroke)] bg-white/80 px-6 py-4 shadow-[var(--shadow)] backdrop-blur">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
                 Kanban Studio
-              </h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--gray-text)]">
-                Keep momentum visible. Rename columns, drag cards between
-                stages, and capture quick notes without getting buried in
-                settings.
               </p>
-            </div>
-            <div className="flex items-start gap-4">
-              <BoardSelector
-                boards={boards}
-                activeBoardId={boardId}
-                onSwitch={onSwitchBoard}
-                onBoardsChange={onBoardsChange}
-              />
-              <button
-                type="button"
-                aria-label="Open AI assistant"
-                onClick={() => setSidebarOpen(true)}
-                className="rounded-full border border-[var(--primary-blue)] bg-[var(--primary-blue)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:opacity-90"
-              >
-                AI Assistant
-              </button>
-              {onLogout && (
-                <div className="flex items-center gap-3">
-                  {username && (
-                    <span className="text-xs font-semibold text-[var(--gray-text)]">
-                      {username}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onLogout}
-                    className="rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:border-[var(--navy-dark)] hover:text-[var(--navy-dark)]"
-                  >
-                    Log out
-                  </button>
-                </div>
-              )}
+              <h1 className="font-display text-xl font-semibold text-[var(--navy-dark)] truncate">
+                {board.columns.length > 0
+                  ? boards.find((b) => b.id === boardId)?.name ?? "My Board"
+                  : "My Board"}
+              </h1>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
-            {board.columns.map((column) => (
-              <div
-                key={column.id}
-                className="flex items-center gap-2 rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--navy-dark)]"
-              >
-                <span className="h-2 w-2 rounded-full bg-[var(--accent-yellow)]" />
-                {column.title}
+
+          <div className="flex items-center gap-3 shrink-0">
+            <BoardSelector
+              boards={boards}
+              activeBoardId={boardId}
+              onSwitch={onSwitchBoard}
+              onBoardsChange={onBoardsChange}
+            />
+            <button
+              type="button"
+              aria-label="Open AI assistant"
+              onClick={() => setSidebarOpen(true)}
+              className="flex items-center gap-2 rounded-xl border border-[var(--primary-blue)] bg-[var(--primary-blue)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+            >
+              <Sparkles size={14} />
+              <span className="hidden sm:inline">AI Assistant</span>
+            </button>
+            {onLogout && (
+              <div className="flex items-center gap-2">
+                {username && (
+                  <div className="flex items-center gap-1.5 rounded-xl border border-[var(--stroke)] px-3 py-2 text-xs font-semibold text-[var(--gray-text)]">
+                    <User size={13} />
+                    <span className="hidden md:inline">{username}</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  aria-label="Log out"
+                  className="flex items-center gap-2 rounded-xl border border-[var(--stroke)] px-3 py-2 text-xs font-semibold text-[var(--gray-text)] transition hover:border-[var(--navy-dark)] hover:text-[var(--navy-dark)]"
+                >
+                  <LogOut size={13} />
+                  <span className="hidden sm:inline">Log out</span>
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </header>
 
@@ -221,7 +213,7 @@ export const KanbanBoard = ({ boardId, boards, username, onBoardsChange, onSwitc
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <section className="grid gap-6 lg:grid-cols-5">
+          <section className="grid gap-4 lg:grid-cols-5 md:grid-cols-3 sm:grid-cols-2">
             {board.columns.map((column) => (
               <div
                 key={column.id}
@@ -239,7 +231,7 @@ export const KanbanBoard = ({ boardId, boards, username, onBoardsChange, onSwitc
           </section>
           <DragOverlay>
             {activeCard ? (
-              <div className="w-[260px]">
+              <div className="w-[240px]">
                 <KanbanCardPreview card={activeCard} />
               </div>
             ) : null}
