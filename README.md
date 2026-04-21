@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 # PM — Kanban Board with AI Sidebar
 
 A full-stack project management app featuring a drag-and-drop Kanban board and an AI chat sidebar that can create, move, and rename cards on your behalf.
@@ -259,3 +261,9 @@ pm/
     └── tests/
         └── (Playwright E2E specs)
 ```
+
+---
+
+## License
+
+MIT © 2026 Amit Upadhyay
