@@ -158,7 +158,7 @@ export const KanbanBoard = ({ boardId, boards, username, onBoardsChange, onSwitc
       <main className="relative mx-auto flex min-h-[100dvh] max-w-[1500px] flex-col gap-4 sm:gap-6 px-3 sm:px-6 pb-16 pt-4 sm:pt-8">
 
         {/* Header */}
-        <header className="flex items-center justify-between gap-2 sm:gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-header)] px-4 py-3 sm:px-6 sm:py-4 shadow-[var(--shadow)] backdrop-blur">
+        <header className="relative z-10 flex items-center justify-between gap-2 sm:gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-header)] px-4 py-3 sm:px-6 sm:py-4 shadow-[var(--shadow)] backdrop-blur">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
               Kanban Studio
